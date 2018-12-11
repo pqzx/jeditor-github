@@ -3,23 +3,24 @@
 
 <head>
   <meta charset="utf-8" />
-  <title>Advanced JSON Editor Example</title>
+  <title>Messages Editor</title>
   <script src="jsoneditor.js"></script>
 </head>
 
 <body>
-  <h1>Advanced JSON Editor Example</h1>
+  <h1>Messages Editor</h1>
 
-  <p>This example demonstrates the following:</p>
-  <ul>
-    <li>Loading external schemas via ajax (using $ref)</li>
-    <li>Setting the editor's value from javascript (try the Restore to Default button)</li>
-    <li>Validating the editor's contents (try setting name to an empty string)</li>
-    <li>Macro templates (try changing the city or state fields and watch the citystate field update automatically)</li>
-    <li>Enabling and disabling editor fields</li>
-  </ul>
+  <div>
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="username">
+  </div>
 
-  <button id='submit'>Submit (console.log)</button>
+  <div>
+    <label for="pass">Password:</label>
+    <input type="password" id="pass" name="password">
+  </div>
+
+  <button id='submit'>Commit changes (enter login details))</button>
   <button id='restore'>Restore to Default</button>
   <button id='enable_disable'>Disable/Enable Form</button>
   <span id='valid_indicator'></span>
@@ -27,131 +28,151 @@
   <div id='editor_holder'></div>
 
   <script>
-    // This is the starting value for the editor
-    // We will use this to seed the initial editor 
-    // and to provide a "Restore to Default" button.
+    var request = new XMLHttpRequest();
 
-    var starting_value = [
-      {
-        id: 1,
-        day: 0,
-        hours: 0,
-        content: "Congratulations! Well done you! You've just taken a leap of faith in you.  We believe that you are worthy and that things can be different for you.  It's a journey and a process.  We will walk the walk with you."
-      },
-      {
-        id: 2,
-        day: 1,
-        hours: 11,
-        content: "We are going to meet you where you are. Breathe"
-      }
-    ];
+    request.open('GET', 'https://api.github.com/repos/:owner/:repo/contents/:path_to_file', true);
 
-    // Initialize the editor
-    var editor = new JSONEditor(document.getElementById('editor_holder'), {
+    request.onload = function () {
 
-      // The schema for the editor
-      schema: {
-        type: "array",
-        title: "Messages",
-        //format: "table",
-        items: {
-          type: "object",
-          title: "Message",
-          headerTemplate: "{{i1}}",
-          options: {
-            disable_edit_json: true,
-            disable_properties: true,
-          },
-          properties:
-          {
-            "content": {
-              "type": "string",
-              "format": "textarea",
-              options: {
-                input_height: "100px",
-                input_width: "450px",
-                expand_height: true,
+      // Begin accessing JSON data here
+      var data = JSON.parse(this.response);
+      content = atob(data.content);
+      sha = data.sha;
+
+      var starting_value = JSON.parse(content);
+
+      // Initialize the editor
+      var editor = new JSONEditor(document.getElementById('editor_holder'), {
+
+        // The schema for the editor
+        schema: {
+          type: "array",
+          title: "Messages",
+          //format: "table",
+          items: {
+            type: "object",
+            title: "Message",
+            headerTemplate: "{{i1}}",
+            options: {
+              disable_edit_json: true,
+              disable_properties: true,
+            },
+            properties:
+            {
+              "content": {
+                "type": "string",
+                "format": "textarea",
+                options: {
+                  input_height: "100px",
+                  input_width: "450px",
+                  expand_height: true,
+                }
               }
             }
+
           }
+        },
 
+        // Seed the form with a starting value
+        startval: starting_value,
+
+        // Disable additional properties
+        no_additional_properties: true,
+
+        // Require all properties by default
+        required_by_default: true
+      });
+
+      // 2 week cycle of active days
+      var days = [1, 3, 4, 6, 9, 11, 13, 14]
+
+      function getRandomTime() {
+        // Return a random hour between 10 and 22
+        return Math.floor(Math.random() * Math.floor(12) + 10);
+      }
+
+      // Hook up the Restore to Default button
+      document.getElementById('restore').addEventListener('click', function () {
+        if (confirm("Restoring to default will delete all your unsaved changes. You should commit your changes if you wish to save them.\n\nAre you sure you wish to restore default?") === true) {
+          editor.setValue(starting_value);
+        };
+      });
+
+      // Hook up the enable/disable button
+      document.getElementById('enable_disable').addEventListener('click', function () {
+        // Enable form
+        if (!editor.isEnabled()) {
+          editor.enable();
         }
-      },
+        // Disable form
+        else {
+          editor.disable();
+        }
+      });
 
-      // Seed the form with a starting value
-      startval: starting_value,
+      // Hook up the validation indicator to update its 
+      // status whenever the editor changes
+      editor.on('change', function () {
+        // Get an array of errors from the validator
+        var errors = editor.validate();
 
-      // Disable additional properties
-      no_additional_properties: true,
+        var indicator = document.getElementById('valid_indicator');
 
-      // Require all properties by default
-      required_by_default: true
-    });
+        // Not valid
+        if (errors.length) {
+          indicator.style.color = 'red';
+          indicator.textContent = "not valid";
+        }
+        // Valid
+        else {
+          indicator.style.color = 'green';
+          indicator.textContent = "valid";
+        }
+      });
 
-    // 2 week cycle of active days
-    var days = [1, 3, 4, 6, 9, 11, 13, 14]
+      // create response
+      var uname = document.getElementById('username');
+      var pword = document.getElementById('pass');
 
-    function getRandomTime() {
-      // Return a random hour between 10 and 22
-      return Math.floor(Math.random() * Math.floor(12) + 10);
+      // Hook up the submit button to log to the console
+      document.getElementById('submit').addEventListener('click', function () {
+        // Get the value from the editor
+        var messages = editor.getValue();
+        // create the json we are interested in
+        var msgjson = []
+        for (var i = 0; i < messages.length; i++) {
+          var msg = {
+            id: i,
+            day: days[i % days.length] + Math.floor(i / days.length) * 14,
+            hours: getRandomTime(),
+            content: messages[i]["content"]
+          }
+          msgjson.push(msg);
+        }
+        console.log(msgjson);
+        var fullstring = uname.value + ':' + pword.value;
+        var encoded = btoa(fullstring);
+        var reply = new XMLHttpRequest();
+        reply.open('PUT', 'https://api.github.com/repos/:owner/:repo/contents/:path_to_file', true);
+        reply.setRequestHeader('Authorization', 'Basic ' + encoded);
+        var replyContent = btoa(JSON.stringify(msgjson));
+        var update = {
+          "message": "updated with api",
+          "committer": {
+            "name": ":name",
+            "email": ":email"
+          },
+          "content": replyContent,
+          "sha": sha
+        }
+        var params = JSON.stringify(update);
+        reply.send(params)
+      });
+
     }
 
-    // Hook up the submit button to log to the console
-    document.getElementById('submit').addEventListener('click', function () {
-      // Get the value from the editor
-      var messages = editor.getValue();
-      // create the json we are interested in
-      var msgjson = []
-      for (var i = 0; i < messages.length; i++) {
-        var msg = {
-          id: i,
-          day: days[i % days.length] + Math.floor(i / days.length) * 14,
-          hours: getRandomTime(),
-          content: messages[i]["content"]
-        }
-        msgjson.push(msg);
-      }
-      console.log(msgjson);
-    });
+    request.send();
 
-    // Hook up the Restore to Default button
-    document.getElementById('restore').addEventListener('click', function () {
-      if (confirm("Restoring to default will delete all your unsaved changes. You should commit your changes if you wish to save them.\n\nAre you sure you wish to restore default?") === true) {
-        editor.setValue(starting_value);
-      };
-    });
-
-    // Hook up the enable/disable button
-    document.getElementById('enable_disable').addEventListener('click', function () {
-      // Enable form
-      if (!editor.isEnabled()) {
-        editor.enable();
-      }
-      // Disable form
-      else {
-        editor.disable();
-      }
-    });
-
-    // Hook up the validation indicator to update its 
-    // status whenever the editor changes
-    editor.on('change', function () {
-      // Get an array of errors from the validator
-      var errors = editor.validate();
-
-      var indicator = document.getElementById('valid_indicator');
-
-      // Not valid
-      if (errors.length) {
-        indicator.style.color = 'red';
-        indicator.textContent = "not valid";
-      }
-      // Valid
-      else {
-        indicator.style.color = 'green';
-        indicator.textContent = "valid";
-      }
-    });
   </script>
 </body>
 
