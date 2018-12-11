@@ -88,15 +88,37 @@
       required_by_default: true
     });
 
+    // 2 week cycle of active days
+    var days = [1, 3, 4, 6, 9, 11, 13, 14]
+
+    function getRandomTime() {
+      // Return a random hour between 10 and 22
+      return Math.floor(Math.random() * Math.floor(12) + 10);
+    }
+
     // Hook up the submit button to log to the console
     document.getElementById('submit').addEventListener('click', function () {
       // Get the value from the editor
-      console.log(editor.getValue());
+      var messages = editor.getValue();
+      // create the json we are interested in
+      var msgjson = []
+      for (var i = 0; i < messages.length; i++) {
+        var msg = {
+          id: i,
+          day: days[i % days.length] + Math.floor(i / days.length) * 14,
+          hours: getRandomTime(),
+          content: messages[i]["content"]
+        }
+        msgjson.push(msg);
+      }
+      console.log(msgjson);
     });
 
     // Hook up the Restore to Default button
     document.getElementById('restore').addEventListener('click', function () {
-      editor.setValue(starting_value);
+      if (confirm("Restoring to default will delete all your unsaved changes. You should commit your changes if you wish to save them.\n\nAre you sure you wish to restore default?") === true) {
+        editor.setValue(starting_value);
+      };
     });
 
     // Hook up the enable/disable button
