@@ -43,17 +43,15 @@
     var source = document.getElementById("source");
     document.getElementById("get_source").addEventListener("click", function () {
       var path = source.value;
-      console.log(path);
-      var a = path.split('/');
-      console.log(a);
+      var parts = path.split('/');
       // This relies on the github url to not change
-      var parts = {
-        owner: a[3],
-        repo: a[4],
-        branch: a[6],
-        path_to_file: a.splice(7).join('/')
+      var gh = {
+        owner: parts[3],
+        repo: parts[4],
+        branch: parts[6],
+        path_to_file: parts.splice(7).join('/')
       }
-      var api = "https://api.github.com/repos/" + parts.owner + '/' + parts.repo + '/contents/' + parts.path_to_file;
+      var api = "https://api.github.com/repos/" + gh.owner + '/' + gh.repo + '/contents/' + gh.path_to_file;
 
       console.log(api);
 
@@ -64,120 +62,107 @@
         content = atob(data.content);
         sha = data.sha;
         console.log(content);
+
+        var starting_value = JSON.parse(content);
+
+        // Initialize the editor
+        var editor = new JSONEditor(document.getElementById('editor_holder'), {
+
+          // The schema for the editor
+          schema: {
+            type: "array",
+            title: "Messages",
+            //format: "table",
+            items: {
+              type: "object",
+              title: "Message",
+              headerTemplate: "{{i1}}",
+              options: {
+                disable_edit_json: true,
+                disable_properties: true,
+              },
+              properties:
+              {
+                "content": {
+                  "type": "string",
+                  "format": "textarea",
+                  options: {
+                    input_height: "100px",
+                    input_width: "450px",
+                    expand_height: true,
+                  }
+                }
+              }
+
+            }
+          },
+
+          // Seed the form with a starting value
+          startval: starting_value,
+
+          // Disable additional properties
+          no_additional_properties: true,
+
+          // Require all properties by default
+          required_by_default: true
+        });
+
+        // 2 week cycle of active days
+        var days = [1, 3, 4, 6, 9, 11, 13, 14]
+
+        function getRandomTime() {
+          // Return a random hour between 10 and 22
+          return Math.floor(Math.random() * Math.floor(12) + 10);
+        }
+
+        // create response
+        var uname = document.getElementById('username');
+        var pword = document.getElementById('pass');
+
+        // Hook up the submit button to json and send to github
+        document.getElementById('submit').addEventListener('click', function () {
+          // Get the value from the editor
+          var messages = editor.getValue();
+          // create the json we are interested in
+          var msgjson = []
+          for (var i = 0; i < messages.length; i++) {
+            var msg = {
+              id: i,
+              day: days[i % days.length] + Math.floor(i / days.length) * 14,
+              hours: getRandomTime(),
+              content: messages[i]["content"]
+            }
+            msgjson.push(msg);
+          }
+
+          // setup connection with github
+          var fullstring = uname.value + ':' + pword.value;
+          var encoded = btoa(fullstring);
+          var reply = new XMLHttpRequest();
+          reply.open('PUT', api, true);
+          reply.setRequestHeader('Authorization', 'Basic ' + encoded);
+          var replyContent = btoa(JSON.stringify(msgjson));
+          var update = {
+            "message": "updated with api",
+            "committer": {
+              "name": document.getElementById('commitname').value,
+              "email": document.getElementById('commitemail').value
+            },
+            "content": replyContent,
+            "sha": sha
+          }
+          var params = JSON.stringify(update);
+          reply.send(params)
+        });
+
       }
 
       // set branch
       var params = {
-        ref: parts.branch
+        ref: gh.branch
       }
       request.send(JSON.stringify(params));
     })
-
-    /*var request = new XMLHttpRequest();
-
-    request.open('GET', 'https://api.github.com/repos/:owner/:repo/contents/:path_to_file', true);
-
-    request.onload = function () {
-
-      // Begin accessing JSON data here
-      var data = JSON.parse(this.response);
-      content = atob(data.content);
-      sha = data.sha;
-
-      var starting_value = JSON.parse(content);
-
-      // Initialize the editor
-      var editor = new JSONEditor(document.getElementById('editor_holder'), {
-
-        // The schema for the editor
-        schema: {
-          type: "array",
-          title: "Messages",
-          //format: "table",
-          items: {
-            type: "object",
-            title: "Message",
-            headerTemplate: "{{i1}}",
-            options: {
-              disable_edit_json: true,
-              disable_properties: true,
-            },
-            properties:
-            {
-              "content": {
-                "type": "string",
-                "format": "textarea",
-                options: {
-                  input_height: "100px",
-                  input_width: "450px",
-                  expand_height: true,
-                }
-              }
-            }
-
-          }
-        },
-
-        // Seed the form with a starting value
-        startval: starting_value,
-
-        // Disable additional properties
-        no_additional_properties: true,
-
-        // Require all properties by default
-        required_by_default: true
-      });
-
-      // 2 week cycle of active days
-      var days = [1, 3, 4, 6, 9, 11, 13, 14]
-
-      function getRandomTime() {
-        // Return a random hour between 10 and 22
-        return Math.floor(Math.random() * Math.floor(12) + 10);
-      }
-
-      // create response
-      var uname = document.getElementById('username');
-      var pword = document.getElementById('pass');
-
-      // Hook up the submit button to json and send to github
-      document.getElementById('submit').addEventListener('click', function () {
-        // Get the value from the editor
-        var messages = editor.getValue();
-        // create the json we are interested in
-        var msgjson = []
-        for (var i = 0; i < messages.length; i++) {
-          var msg = {
-            id: i,
-            day: days[i % days.length] + Math.floor(i / days.length) * 14,
-            hours: getRandomTime(),
-            content: messages[i]["content"]
-          }
-          msgjson.push(msg);
-        }
-        console.log(msgjson);
-        var fullstring = uname.value + ':' + pword.value;
-        var encoded = btoa(fullstring);
-        var reply = new XMLHttpRequest();
-        reply.open('PUT', 'https://api.github.com/repos/:owner/:repo/contents/:path_to_file', true);
-        reply.setRequestHeader('Authorization', 'Basic ' + encoded);
-        var replyContent = btoa(JSON.stringify(msgjson));
-        var update = {
-          "message": "updated with api",
-          "committer": {
-            "name": ":name",
-            "email": ":email"
-          },
-          "content": replyContent,
-          "sha": sha
-        }
-        var params = JSON.stringify(update);
-        reply.send(params)
-      });
-
-    }
-
-    request.send(); */
 
   </script>
 </body>
