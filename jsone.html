@@ -11,6 +11,12 @@
   <h1>Messages Editor</h1>
 
   <div>
+    <label for="source">Github url to file:</label>
+    <input type="text" id="source" name="source">
+    <button id="get_source">Retrieve file</button>
+  </div>
+
+  <div>
     <label for="username">Username:</label>
     <input type="text" id="username" name="username">
   </div>
@@ -20,15 +26,54 @@
     <input type="password" id="pass" name="password">
   </div>
 
-  <button id='submit'>Commit changes (enter login details))</button>
-  <button id='restore'>Restore to Default</button>
-  <button id='enable_disable'>Disable/Enable Form</button>
-  <span id='valid_indicator'></span>
+  <button id='submit'>Commit changes (enter login details)</button>
+  <div>
+    <label for="commitname">Name (for commit, optional):</label>
+    <input type="text" id="commitname" name="commitname" value="None">
+  </div>
+  <div>
+    <label for="commitemail">Email (for commit, optional):</label>
+    <input type="text" id="commitemail" name="commitemail" value="None">
+  </div>
+
 
   <div id='editor_holder'></div>
 
   <script>
-    var request = new XMLHttpRequest();
+    var source = document.getElementById("source");
+    document.getElementById("get_source").addEventListener("click", function () {
+      var path = source.value;
+      console.log(path);
+      var a = path.split('/');
+      console.log(a);
+      // This relies on the github url to not change
+      var parts = {
+        owner: a[3],
+        repo: a[4],
+        branch: a[6],
+        path_to_file: a.splice(7).join('/')
+      }
+      var api = "https://api.github.com/repos/" + parts.owner + '/' + parts.repo + '/contents/' + parts.path_to_file;
+
+      console.log(api);
+
+      var request = new XMLHttpRequest();
+      request.open('GET', api, true);
+      request.onload = function () {
+        var data = JSON.parse(this.response);
+        content = atob(data.content);
+        sha = data.sha;
+        console.log(content);
+      }
+
+      // set branch
+      var params = {
+        ref: parts.branch
+      }
+      request.send(JSON.stringify(params));
+    })
+
+    /*var request = new XMLHttpRequest();
 
     request.open('GET', 'https://api.github.com/repos/:owner/:repo/contents/:path_to_file', true);
 
@@ -91,50 +136,11 @@
         return Math.floor(Math.random() * Math.floor(12) + 10);
       }
 
-      // Hook up the Restore to Default button
-      document.getElementById('restore').addEventListener('click', function () {
-        if (confirm("Restoring to default will delete all your unsaved changes. You should commit your changes if you wish to save them.\n\nAre you sure you wish to restore default?") === true) {
-          editor.setValue(starting_value);
-        };
-      });
-
-      // Hook up the enable/disable button
-      document.getElementById('enable_disable').addEventListener('click', function () {
-        // Enable form
-        if (!editor.isEnabled()) {
-          editor.enable();
-        }
-        // Disable form
-        else {
-          editor.disable();
-        }
-      });
-
-      // Hook up the validation indicator to update its 
-      // status whenever the editor changes
-      editor.on('change', function () {
-        // Get an array of errors from the validator
-        var errors = editor.validate();
-
-        var indicator = document.getElementById('valid_indicator');
-
-        // Not valid
-        if (errors.length) {
-          indicator.style.color = 'red';
-          indicator.textContent = "not valid";
-        }
-        // Valid
-        else {
-          indicator.style.color = 'green';
-          indicator.textContent = "valid";
-        }
-      });
-
       // create response
       var uname = document.getElementById('username');
       var pword = document.getElementById('pass');
 
-      // Hook up the submit button to log to the console
+      // Hook up the submit button to json and send to github
       document.getElementById('submit').addEventListener('click', function () {
         // Get the value from the editor
         var messages = editor.getValue();
@@ -171,7 +177,7 @@
 
     }
 
-    request.send();
+    request.send(); */
 
   </script>
 </body>
