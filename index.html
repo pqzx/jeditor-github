@@ -42,8 +42,7 @@
   <script>
     var source = document.getElementById("source");
     document.getElementById("get_source").addEventListener("click", function () {
-      var path = source.value;
-      var parts = path.split('/');
+      var parts = source.value.split('/');
       // This relies on the github url to not change
       var gh = {
         owner: parts[3],
@@ -53,16 +52,13 @@
       }
       var api = "https://api.github.com/repos/" + gh.owner + '/' + gh.repo + '/contents/' + gh.path_to_file;
 
-      console.log(api);
-
       var request = new XMLHttpRequest();
       request.open('GET', api, true);
       request.onload = function () {
+
         var data = JSON.parse(this.response);
         content = atob(data.content);
-        sha = data.sha;
-        console.log(content);
-
+        var sha = data.sha;
         var starting_value = JSON.parse(content);
 
         // Initialize the editor
@@ -93,7 +89,6 @@
                   }
                 }
               }
-
             }
           },
 
