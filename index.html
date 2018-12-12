@@ -32,8 +32,6 @@
   </div>
   <button id='submit'>Commit changes (enter login details)</button>
 
-
-
   <div id='editor_holder'></div>
 
   <script>
@@ -141,6 +139,14 @@
             "branch": gh.branch // push onto same branch
           }
           var params = JSON.stringify(update);
+          reply.onload = function () {
+            var data = JSON.parse(this.response);
+            if (data.hasOwnProperty('commit')) {
+              confirm('Commit succeeded.');
+            } else {
+              confirm('Commit failed. Check login details correct.');
+            }
+          }
           reply.send(params)
         });
 
