@@ -26,15 +26,12 @@
     <input type="password" id="pass" name="password">
   </div>
 
+  <div>
+    <label for="commitmsg">Commit message:</label>
+    <input type="text" id="commitmsg" name="commitmsg" value="Updated with message editor">
+  </div>
   <button id='submit'>Commit changes (enter login details)</button>
-  <div>
-    <label for="commitname">Name (for commit, optional):</label>
-    <input type="text" id="commitname" name="commitname" value="None">
-  </div>
-  <div>
-    <label for="commitemail">Email (for commit, optional):</label>
-    <input type="text" id="commitemail" name="commitemail" value="None">
-  </div>
+
 
 
   <div id='editor_holder'></div>
@@ -57,7 +54,7 @@
       request.onload = function () {
 
         var data = JSON.parse(this.response);
-        content = atob(data.content);
+        var content = atob(data.content);
         var sha = data.sha;
         var starting_value = JSON.parse(content);
 
@@ -138,13 +135,10 @@
           reply.setRequestHeader('Authorization', 'Basic ' + encoded);
           var replyContent = btoa(JSON.stringify(msgjson));
           var update = {
-            "message": "updated with api",
-            "committer": {
-              "name": document.getElementById('commitname').value,
-              "email": document.getElementById('commitemail').value
-            },
+            "message": document.getElementById('commitmsg').value,
             "content": replyContent,
-            "sha": sha
+            "sha": sha,
+            "branch": gh.branch // push onto same branch
           }
           var params = JSON.stringify(update);
           reply.send(params)
