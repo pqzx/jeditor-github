@@ -4,7 +4,13 @@
 <head>
   <meta charset="utf-8" />
   <title>Messages Editor</title>
+  <link rel='stylesheet' href='css/style.css'>
+  <link rel='stylesheet' href='//cdn.jsdelivr.net/foundation/5.0.2/css/foundation.min.css'>
   <script src="jsoneditor.js"></script>
+  <script>
+    // Set the default CSS theme and icon library globally
+    JSONEditor.defaults.theme = 'foundation5';
+  </script>
 </head>
 
 <body>
@@ -58,8 +64,8 @@
               "format": "textarea",
               options: {
                 input_height: "100px",
-                input_width: "450px",
-                expand_height: true,
+                //input_width: "450px",
+                //expand_height: true,
               }
             }
           }
@@ -68,6 +74,8 @@
 
       // Disable additional properties
       no_additional_properties: true,
+      disable_collapse: true,
+      disable_array_delete_last_row: true,
 
       // Require all properties by default
       required_by_default: true
