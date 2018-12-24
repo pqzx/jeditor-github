@@ -67,6 +67,12 @@
                 //input_width: "450px",
                 //expand_height: true,
               }
+            },
+            "uuid": {
+              "type": "string",
+              options: {
+                hidden: true,
+              }
             }
           }
         }
@@ -81,6 +87,19 @@
       required_by_default: true
     });
 
+    function generateUUID() { // Public Domain/MIT
+      // Adapted from https://stackoverflow.com/a/8809472/
+      var d = Date.now();
+      if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+        d += performance.now(); //use high-precision timer if available
+      }
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = (d + Math.random() * 16) % 16 | 0;
+        d = Math.floor(d / 16);
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+    }
+
     // retrieve json file
     document.getElementById("get_source").addEventListener("click", function () {
       if (editor.getValue().length > 0) {
@@ -91,7 +110,7 @@
 
       var source = document.getElementById("source");
       var parts = source.value.split('/');
-      // This relies on the github url to not change
+      // This relies on the github url structure to not change
       var gh = {
         owner: parts[3],
         repo: parts[4],
@@ -111,14 +130,6 @@
 
         editor.setValue(starting_value);
 
-        // 2 week cycle of active days
-        var days = [1, 3, 4, 6, 9, 11, 13, 14]
-
-        function getRandomTime() {
-          // Return a random hour between 10 and 22
-          return Math.floor(Math.random() * Math.floor(12) + 10);
-        }
-
         // create response
         var uname = document.getElementById('username');
         var pword = document.getElementById('pass');
@@ -130,10 +141,12 @@
           // create the json we are interested in
           var msgjson = []
           for (var i = 0; i < messages.length; i++) {
+            if (messages[i]["uuid"] == "") {
+              messages[i]["uuid"] = generateUUID();
+            }
             var msg = {
-              id: i,
-              day: days[i % days.length] + Math.floor(i / days.length) * 14,
-              hours: getRandomTime(),
+              uuid: messages[i]["uuid"],
+              sequence: i,
               content: messages[i]["content"]
             }
             msgjson.push(msg);
