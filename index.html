@@ -41,6 +41,10 @@
   <div id='editor_holder'></div>
 
   <script>
+    // set source file here
+    // TODO: hardcode url here and remove ability to enter/use entered url
+    var githubFile = '';
+
     // Initialize the editor
     var editor = new JSONEditor(document.getElementById('editor_holder'), {
 
@@ -100,6 +104,103 @@
       });
     }
 
+    function parseGitHubURL(url) {
+      // creates url for accessing github content api from url for github file
+      var parts = url.split('/');
+      // This relies on the github url structure to not change
+      var gh = {
+        owner: parts[3],
+        repo: parts[4],
+        //branch: parts[6],
+        path_to_file: parts.splice(7).join('/')
+      }
+      var api = "https://api.github.com/repos/" + gh.owner + '/' + gh.repo + '/contents/' + gh.path_to_file;
+      return api;
+    }
+
+    function getGitHubBranch(url) {
+      return url.split('/')[6];
+    }
+
+    function createAuthHeader(username, password) {
+      // creates token for HTTP Basic Authentication
+      var fullstring = username + ':' + password;
+      var encoded = btoa(fullstring);
+      return 'Basic ' + encoded;
+    }
+
+    function loadFile() {
+      var request = new XMLHttpRequest();
+      request.open('GET', api, true);
+      request.setRequestHeader('Authorization', createAuthHeader(uname.value, pword.value));
+      request.onload = function () {
+
+        var data = JSON.parse(this.response);
+        var content = atob(data.content);
+        var startingValue = JSON.parse(content);
+
+        // update globals
+        sha = data.sha;
+        editor.setValue(startingValue);
+      }
+
+      // set branch
+      var params = {
+        ref: branch
+      }
+      request.send(JSON.stringify(params));
+    }
+
+    function pushFile(content) {
+      var request = new XMLHttpRequest();
+      request.open('PUT', api, true);
+      request.setRequestHeader('Authorization', createAuthHeader(uname.value, pword.value));
+      var requestContent = btoa(JSON.stringify(content));
+      var update = {
+        "message": document.getElementById('commitmsg').value,
+        "content": requestContent,
+        "sha": sha,
+        "branch": branch // push onto same branch
+      }
+      var params = JSON.stringify(update);
+      request.onload = function () {
+        var data = JSON.parse(this.response);
+        if (data.hasOwnProperty('commit')) {
+          confirm('Commit succeeded.');
+          // update sha
+          sha = data.content.sha;
+        } else {
+          confirm('Commit failed. Check login details correct.');
+        }
+      }
+      request.send(params)
+    }
+
+    function makeJSON(messages) {
+      // create the json we are interested in
+      var msgjson = []
+      for (var i = 0; i < messages.length; i++) {
+        if (messages[i]["uuid"] == "") {
+          messages[i]["uuid"] = generateUUID();
+        }
+        var msg = {
+          uuid: messages[i]["uuid"],
+          sequence: i,
+          content: messages[i]["content"]
+        }
+        msgjson.push(msg);
+      }
+      return msgjson;
+    }
+
+    // collect global variables
+    var source = document.getElementById("source");
+    var api = "" //parseGitHubURL(githubFile);
+    var branch = "" //getGitHubBranch(githubFile);
+    var sha = "";
+    var uname = document.getElementById('username');
+    var pword = document.getElementById('pass');
+
     // retrieve json file
     document.getElementById("get_source").addEventListener("click", function () {
       if (editor.getValue().length > 0) {
@@ -107,84 +208,18 @@
           return;
         }
       }
-
-      var source = document.getElementById("source");
-      var parts = source.value.split('/');
-      // This relies on the github url structure to not change
-      var gh = {
-        owner: parts[3],
-        repo: parts[4],
-        branch: parts[6],
-        path_to_file: parts.splice(7).join('/')
-      }
-      var api = "https://api.github.com/repos/" + gh.owner + '/' + gh.repo + '/contents/' + gh.path_to_file;
-
-      var request = new XMLHttpRequest();
-      request.open('GET', api, true);
-      request.onload = function () {
-
-        var data = JSON.parse(this.response);
-        var content = atob(data.content);
-        var sha = data.sha;
-        var starting_value = JSON.parse(content);
-
-        editor.setValue(starting_value);
-
-        // create response
-        var uname = document.getElementById('username');
-        var pword = document.getElementById('pass');
-
-        // Hook up the submit button to json and send to github
-        document.getElementById('submit').addEventListener('click', function () {
-          // Get the value from the editor
-          var messages = editor.getValue();
-          // create the json we are interested in
-          var msgjson = []
-          for (var i = 0; i < messages.length; i++) {
-            if (messages[i]["uuid"] == "") {
-              messages[i]["uuid"] = generateUUID();
-            }
-            var msg = {
-              uuid: messages[i]["uuid"],
-              sequence: i,
-              content: messages[i]["content"]
-            }
-            msgjson.push(msg);
-          }
-
-          // setup connection with github
-          var fullstring = uname.value + ':' + pword.value;
-          var encoded = btoa(fullstring);
-          var reply = new XMLHttpRequest();
-          reply.open('PUT', api, true);
-          reply.setRequestHeader('Authorization', 'Basic ' + encoded);
-          var replyContent = btoa(JSON.stringify(msgjson));
-          var update = {
-            "message": document.getElementById('commitmsg').value,
-            "content": replyContent,
-            "sha": sha,
-            "branch": gh.branch // push onto same branch
-          }
-          var params = JSON.stringify(update);
-          reply.onload = function () {
-            var data = JSON.parse(this.response);
-            if (data.hasOwnProperty('commit')) {
-              confirm('Commit succeeded.');
-            } else {
-              confirm('Commit failed. Check login details correct.');
-            }
-          }
-          reply.send(params)
-        });
-
-      }
-
-      // set branch
-      var params = {
-        ref: gh.branch
-      }
-      request.send(JSON.stringify(params));
+      api = parseGitHubURL(source.value);
+      branch = getGitHubBranch(source.value);
+      loadFile();
     })
+
+    // Hook up the submit button to create json and send to github
+    document.getElementById('submit').addEventListener('click', function () {
+      var messages = editor.getValue();
+      msgjson = makeJSON(messages);
+      pushFile(msgjson);
+    });
+
 
   </script>
 </body>
